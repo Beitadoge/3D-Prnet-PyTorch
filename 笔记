@@ -1,0 +1,66 @@
+------pytorch保存和加载模型------
+# 保存和加载整个模型
+torch.save(model_object, 'model.pkl')
+model = torch.load('model.pkl')
+
+# 仅保存和加载模型参数(推荐使用)
+torch.save(model_object.state_dict(), 'params.pkl')
+model_object.load_state_dict(torch.load('params.pkl'))
+
+
+------pytorch动态调整学习率------
+
+https://zhuanlan.zhihu.com/p/41127426 ： pytorch的optimizer模块介绍
+
+http://www.spytensor.com/index.php/archives/32/?zkzmpy=vcjtq3
+
+def adjust_learning_rate(optimizer, epoch, lr):
+    """Sets the learning rate to the initial LR decayed by 10 every 2 epochs"""
+    lr *= (0.1 ** (epoch // 2))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+
+pytorch获取当前学习率 ： lr_init = optimizer.param_groups[0]['lr']
+
+Heng's lr = 0.1
+if epoch >= 10: lr = 0.01
+if epoch >= 25: lr = 0.005
+if epoch >= 35: lr = 0.0010
+if epoch >= 40: lr = 0.0001
+if epoch >= 45: break
+Others have rely on ReduceLROnPlateau… What is your recommended strategy for determining the most optimal / good enough LR schedule?
+
+#分层学习率
+optim.SGD([               
+        {'params': model.base.parameters()},
+        {'params': model.classifier.parameters(), 'lr': 1e-3}],
+    lr=1e-2, momentum=0.9)
+
+#分层学习率
+model=torchvision.models.resnet101(pretrained=True)
+large_lr_layers=list(map(id,model.fc.parameters()))
+small_lr_layers=filter(lambda p:id(p) not in large_lr_layers,model.parameters())
+optimizer=torch.optim.SGD([
+        {"params":large_lr_layers},
+        {"params":small_lr_layers,"lr":1e-4}],lr=1e-2,momenum=0.9)
+注：large_lr_layers学习率为1e-2,small_lr_layers学习率为1e-4，两部分参数共用一个momenum
+
+#optimizer中zero_gra
+def zero_grad(self):
+    """Clears the gradients of all optimized :class:`torch.Tensor` s."""
+    for group in self.param_groups:
+        for p in group['params']:
+        if p.grad is not None:
+           p.grad.detach_()
+           p.grad.zero_()
+
+
+------学习率调整策略------
+Learning Rate Schedules and Adaptive Learning Rate Methods for Deep Learning
+https://towardsdatascience.com/learning-rate-schedules-and-adaptive-learning-rate-methods-for-deep-learning-2c8f433990d1
+
+
+------数据增强------
+https://github.com/aleju/imgaug
+https://imgaug.readthedocs.io/en/latest/source/api_augmenters_meta.html?highlight=%20to_deterministic()#imgaug.augmenters.meta.Augmenter.to_deterministic
